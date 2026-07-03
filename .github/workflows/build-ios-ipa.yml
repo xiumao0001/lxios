@@ -131,9 +131,9 @@ jobs:
           ruby --version
           gem --version
           rm -rf ios/Pods ios/Podfile.lock vendor/bundle .bundle
-          gem install cocoapods -v 1.15.2 --no-document
+          sudo gem install cocoapods -v 1.15.2 --no-document
           pod --version
-          pod install --project-directory=ios --repo-update --verbose
+          pod _1.15.2_ install --project-directory=ios --repo-update --verbose
 
       - name: Build unsigned IPA
         if: ${{ github.event_name == 'push' || inputs.signing == 'unsigned' }}
