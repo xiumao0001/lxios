@@ -6,6 +6,7 @@ import { getIgnoreVersion, getIgnoreVersionFailTipTime, saveIgnoreVersion, saveI
 import { showVersionModal } from '@/navigation'
 import { Navigation } from 'react-native-navigation'
 import { toast } from '@/utils/tools'
+import { Platform } from 'react-native'
 
 export const showModal = () => {
   if (versionState.showModal) return
@@ -20,6 +21,20 @@ export const hideModal = (componentId: string) => {
 }
 
 export const checkUpdate = async() => {
+  // iOS 版不下载/安装 APK，也没有官方 iOS 发布通道；避免启动或点击时弹出英文失败提示。
+  if (Platform.OS === 'ios') {
+    versionActions.setVersionInfo({
+      status: 'idle',
+      isLatest: true,
+      isUnknown: false,
+      newVersion: {
+        version: process.versions.app,
+        desc: '',
+        history: [],
+      },
+    })
+    return
+  }
   versionActions.setVersionInfo({ status: 'checking' })
   let versionInfo: InitState['versionInfo'] = { ...versionState.versionInfo }
   try {
@@ -69,6 +84,11 @@ export const checkUpdate = async() => {
 }
 
 export const downloadUpdate = () => {
+  if (Platform.OS === 'ios') {
+    versionActions.setVersionInfo({ status: 'idle' })
+    toast('iOS 版暂不支持应用内更新，请从当前安装渠道获取新版。')
+    return
+  }
   versionActions.setVersionInfo({ status: 'downloading' })
   versionActions.setProgress({ total: 0, current: 0 })
 

@@ -22,14 +22,18 @@ export default class Event {
   }
 
   emit(eventName: string, ...args: any[]) {
-    setImmediate(() => {
+    const run = () => {
       let targetListeners = this.listeners.get(eventName)
       if (!targetListeners) return
       for (const listener of targetListeners) {
         // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
         listener(...args)
       }
-    })
+    }
+    // iOS/Hermes 某些构建里没有 setImmediate，直接调用会导致
+    // “undefined is not a function”，表现为点击顶部“歌曲/歌单”等按钮弹崩溃框。
+    if (typeof setImmediate == 'function') setImmediate(run)
+    else setTimeout(run, 0)
   }
 
   offAll(eventName: string) {
@@ -55,4 +59,3 @@ export default class Event {
 
 //   }
 // }
-

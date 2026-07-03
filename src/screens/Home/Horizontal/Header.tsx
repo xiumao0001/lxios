@@ -1,4 +1,4 @@
-import { View } from 'react-native'
+import { TouchableOpacity, View } from 'react-native'
 // import Button from '@/components/common/Button'
 // import { navigations } from '@/navigation'
 // import { BorderWidths } from '@/theme'
@@ -12,6 +12,8 @@ import { scaleSizeH } from '@/utils/pixelRatio'
 import { HEADER_HEIGHT as _HEADER_HEIGHT } from '@/config/constant'
 import { type InitState as CommonState } from '@/store/common/state'
 import SearchTypeSelector from '@/screens/Home/Views/Search/SearchTypeSelector'
+import { setNavActiveId } from '@/core/common'
+import { useTheme } from '@/store/theme/hook'
 
 const headerComponents: Partial<Record<CommonState['navActiveId'], React.ReactNode>> = {
   nav_search: <SearchTypeSelector />,
@@ -30,6 +32,10 @@ const LeftHeader = () => {
   const id = useNavActiveId()
   const t = useI18n()
   const statusBarHeight = useStatusbarHeight()
+  const theme = useTheme()
+  const openSetting = () => {
+    setNavActiveId('nav_setting')
+  }
 
   return (
     <View style={{
@@ -41,6 +47,9 @@ const LeftHeader = () => {
         <Text style={styles.leftTitle} size={18}>{t(id)}</Text>
       </View>
       {headerComponents[id] ?? null}
+      <TouchableOpacity style={styles.settingBtn} onPress={openSetting}>
+        <Text color={theme['c-font']} size={15}>设置</Text>
+      </TouchableOpacity>
 
       {/* <TouchableOpacity style={styles.btn} onPress={openSetting}>
         <Icon style={{ ...styles.btnText, color: theme['c-font'] }} name="setting" size={styles.btnText.fontSize} />
@@ -60,6 +69,10 @@ const RightHeader = () => {
   const t = useI18n()
   const id = useNavActiveId()
   const statusBarHeight = useStatusbarHeight()
+  const theme = useTheme()
+  const openSetting = () => {
+    setNavActiveId('nav_setting')
+  }
 
   return (
     <View style={{
@@ -71,6 +84,9 @@ const RightHeader = () => {
         <Text style={styles.rightTitle} size={18}>{t(id)}</Text>
       </View>
       {headerComponents[id] ?? null}
+      <TouchableOpacity style={styles.settingBtn} onPress={openSetting}>
+        <Text color={theme['c-font']} size={15}>设置</Text>
+      </TouchableOpacity>
       {/* <TouchableOpacity style={styles.btn} onPress={openSetting}>
         <Icon style={{ ...styles.btnText, color: theme['c-font'] }} name="setting" size={styles.btnText.fontSize} />
       </TouchableOpacity> */}
@@ -125,6 +141,13 @@ const styles = createStyle({
     flex: 1,
     // backgroundColor: 'rgba(0,0,0,0.1)',
     height: '100%',
+    justifyContent: 'center',
+  },
+  settingBtn: {
+    height: '100%',
+    paddingLeft: 10,
+    paddingRight: 10,
+    alignItems: 'center',
     justifyContent: 'center',
   },
   leftTitle: {

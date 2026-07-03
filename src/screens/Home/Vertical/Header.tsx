@@ -14,6 +14,7 @@ import { scaleSizeH } from '@/utils/pixelRatio'
 import { HEADER_HEIGHT } from '@/config/constant'
 import { type InitState as CommonState } from '@/store/common/state'
 import SearchTypeSelector from '@/screens/Home/Views/Search/SearchTypeSelector'
+import { setNavActiveId } from '@/core/common'
 
 const headerComponents: Partial<Record<CommonState['navActiveId'], React.ReactNode>> = {
   nav_search: <SearchTypeSelector />,
@@ -35,6 +36,9 @@ const LeftHeader = () => {
   const openMenu = () => {
     global.app_event.changeMenuVisible(true)
   }
+  const openSetting = () => {
+    setNavActiveId('nav_setting')
+  }
 
   return (
     <View style={{
@@ -51,6 +55,9 @@ const LeftHeader = () => {
         </TouchableOpacity>
       </View>
       {headerComponents[id] ?? null}
+      <TouchableOpacity style={styles.settingBtn} onPress={openSetting}>
+        <Text color={theme['c-font']} size={15}>设置</Text>
+      </TouchableOpacity>
 
       {/* <TouchableOpacity style={styles.btn} onPress={openSetting}>
         <Icon style={{ ...styles.btnText, color: theme['c-font'] }} name="setting" size={styles.btnText.fontSize} />
@@ -75,6 +82,9 @@ const RightHeader = () => {
   const openMenu = () => {
     global.app_event.changeMenuVisible(true)
   }
+  const openSetting = () => {
+    setNavActiveId('nav_setting')
+  }
   return (
     <View style={{
       ...styles.container,
@@ -87,6 +97,9 @@ const RightHeader = () => {
         </TouchableOpacity>
       </View>
       {headerComponents[id] ?? null}
+      <TouchableOpacity style={styles.settingBtn} onPress={openSetting}>
+        <Text color={theme['c-font']} size={15}>设置</Text>
+      </TouchableOpacity>
       <TouchableOpacity style={styles.btn} onPress={openMenu}>
         <Icon color={theme['c-font']} name="menu" size={18} />
       </TouchableOpacity>
@@ -143,6 +156,13 @@ const styles = createStyle({
     flex: 1,
     // backgroundColor: 'rgba(0,0,0,0.1)',
     height: '100%',
+    justifyContent: 'center',
+  },
+  settingBtn: {
+    height: '100%',
+    paddingLeft: 10,
+    paddingRight: 10,
+    alignItems: 'center',
     justifyContent: 'center',
   },
   leftTitle: {

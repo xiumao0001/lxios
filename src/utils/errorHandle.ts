@@ -10,18 +10,18 @@ const errorHandler = (e: Error, isFatal: boolean) => {
   ]
   if (isFatal) {
     if (excludedErrors.some((excludedError) => e.message.includes(excludedError))) {
-      toast('应用遇到了错误，如果你有固定的复现方式，请截图并在 GitHub 反馈（并附上具体的操作步骤，以及“设置-错误日志”的内容）')
+      toast('应用遇到网络响应解析异常，请稍后重试。')
     } else {
       Alert.alert(
-        '💥Unexpected error occurred💥',
+        '应用遇到错误',
         `
-  应用出 bug 了😭，以下是错误异常信息。请截图并在 GitHub 反馈（并附上刚才你进行了什么操作，以及附上“设置-错误日志”的内容）。现在应用可能会出现异常，若出现异常请尝试强制结束应用后重新启动！
+  应用遇到异常。请把下面的错误信息截图发给我，我会继续修。
 
-  Error:
+  错误：
   ${isFatal ? 'Fatal:' : ''} ${e.name} ${e.message}
   `,
         [{
-          text: '关闭 (Close)',
+          text: '关闭',
           onPress: () => {
             // exitApp()
           },
