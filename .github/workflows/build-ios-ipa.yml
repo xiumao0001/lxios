@@ -1,0 +1,277 @@
+name: Build iOS IPA
+
+on:
+  workflow_dispatch:
+    inputs:
+      signing:
+        description: Build unsigned IPA or signed IPA
+        required: true
+        type: choice
+        default: unsigned
+        options:
+          - unsigned
+          - signed
+      bundle_id:
+        description: iOS Bundle Identifier
+        required: true
+        type: string
+        default: cn.toside.music.mobile
+      export_method:
+        description: Xcode export method, only used for signed IPA
+        required: true
+        type: choice
+        default: development
+        options:
+          - development
+          - ad-hoc
+          - app-store
+          - enterprise
+      node_version:
+        description: Node.js version
+        required: true
+        type: string
+        default: '18'
+      xcode_path:
+        description: Xcode path on macos-15 runner
+        required: true
+        type: string
+        default: /Applications/Xcode_16.4.app
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ios-ipa-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-ios:
+    name: Build iOS IPA
+    runs-on: macos-15
+    timeout-minutes: 90
+    env:
+      NO_FLIPPER: '1'
+      BUNDLE_ID: ${{ inputs.bundle_id }}
+      EXPORT_METHOD: ${{ inputs.export_method }}
+      IOS_TEAM_ID: ${{ secrets.IOS_TEAM_ID }}
+      IOS_CERTIFICATE_BASE64: ${{ secrets.IOS_CERTIFICATE_BASE64 }}
+      IOS_CERTIFICATE_PASSWORD: ${{ secrets.IOS_CERTIFICATE_PASSWORD }}
+      IOS_PROVISION_PROFILE_BASE64: ${{ secrets.IOS_PROVISION_PROFILE_BASE64 }}
+      KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Select Xcode and print tool versions
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -d "${{ inputs.xcode_path }}" ]; then
+            sudo xcode-select -s "${{ inputs.xcode_path }}"
+          fi
+          xcodebuild -version
+          xcrun --sdk iphoneos --show-sdk-version
+          ruby --version
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ inputs.node_version }}
+          cache: npm
+
+      - name: Cache Bundler gems
+        uses: actions/cache@v4
+        with:
+          path: vendor/bundle
+          key: ${{ runner.os }}-bundler-${{ hashFiles('Gemfile') }}
+          restore-keys: |
+            ${{ runner.os }}-bundler-
+
+      - name: Install JS dependencies
+        run: npm ci
+
+      - name: Patch iOS metadata
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs = require('fs')
+          const pkg = require('./package.json')
+          const bundleId = process.env.BUNDLE_ID || 'cn.toside.music.mobile'
+          const pbx = 'ios/LxMusicMobile.xcodeproj/project.pbxproj'
+          let s = fs.readFileSync(pbx, 'utf8')
+          s = s.replace(/PRODUCT_BUNDLE_IDENTIFIER = [^;]+;/g, `PRODUCT_BUNDLE_IDENTIFIER = ${bundleId};`)
+          s = s.replace(/MARKETING_VERSION = [^;]+;/g, `MARKETING_VERSION = ${pkg.version};`)
+          s = s.replace(/CURRENT_PROJECT_VERSION = [^;]+;/g, `CURRENT_PROJECT_VERSION = ${pkg.versionCode || 1};`)
+          fs.writeFileSync(pbx, s)
+          const plist = 'ios/LxMusicMobile/Info.plist'
+          let p = fs.readFileSync(plist, 'utf8')
+          p = p.replace(/<key>CFBundleDisplayName<\/key>\s*<string>[^<]*<\/string>/, '<key>CFBundleDisplayName</key>\n\t<string>LX Music</string>')
+          fs.writeFileSync(plist, p)
+          NODE
+
+      - name: Build React Native iOS bundle
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p ios/bundle-assets
+          npx react-native bundle \
+            --platform ios \
+            --dev false \
+            --entry-file index.js \
+            --bundle-output ios/main.jsbundle \
+            --assets-dest ios/bundle-assets
+
+      - name: Install CocoaPods
+        shell: bash
+        run: |
+          set -euo pipefail
+          gem install bundler
+          bundle config set path vendor/bundle
+          bundle install --jobs 4 --retry 3
+          bundle exec pod install --project-directory=ios
+
+      - name: Build unsigned IPA
+        if: ${{ inputs.signing == 'unsigned' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          DERIVED="$PWD/build/DerivedDataUnsigned"
+          OUT="$PWD/build/unsigned"
+          rm -rf "$DERIVED" "$OUT"
+          mkdir -p "$OUT"
+          xcodebuild \
+            -workspace ios/LxMusicMobile.xcworkspace \
+            -scheme LxMusicMobile \
+            -configuration Release \
+            -sdk iphoneos \
+            -derivedDataPath "$DERIVED" \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            PRODUCT_BUNDLE_IDENTIFIER="$BUNDLE_ID" \
+            build
+          APP_PATH="$(find "$DERIVED/Build/Products/Release-iphoneos" -maxdepth 1 -name '*.app' -print -quit)"
+          test -n "$APP_PATH"
+          mkdir -p "$OUT/Payload"
+          ditto "$APP_PATH" "$OUT/Payload/$(basename "$APP_PATH")"
+          (cd "$OUT" && zip -qry "LXMusic-${GITHUB_RUN_NUMBER}-unsigned.ipa" Payload)
+          ls -lah "$OUT"/*.ipa
+
+      - name: Validate signing secrets
+        if: ${{ inputs.signing == 'signed' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${IOS_TEAM_ID:-}" || { echo 'Missing secret IOS_TEAM_ID'; exit 2; }
+          test -n "${IOS_CERTIFICATE_BASE64:-}" || { echo 'Missing secret IOS_CERTIFICATE_BASE64'; exit 2; }
+          test -n "${IOS_CERTIFICATE_PASSWORD:-}" || { echo 'Missing secret IOS_CERTIFICATE_PASSWORD'; exit 2; }
+          test -n "${IOS_PROVISION_PROFILE_BASE64:-}" || { echo 'Missing secret IOS_PROVISION_PROFILE_BASE64'; exit 2; }
+          test -n "${KEYCHAIN_PASSWORD:-}" || { echo 'Missing secret KEYCHAIN_PASSWORD'; exit 2; }
+
+      - name: Install Apple signing certificate and provisioning profile
+        if: ${{ inputs.signing == 'signed' }}
+        id: signing
+        shell: bash
+        run: |
+          set -euo pipefail
+          CERTIFICATE_PATH="$RUNNER_TEMP/ios_certificate.p12"
+          PP_PATH="$RUNNER_TEMP/profile.mobileprovision"
+          PP_PLIST="$RUNNER_TEMP/profile.plist"
+          KEYCHAIN_PATH="$RUNNER_TEMP/app-signing.keychain-db"
+
+          echo -n "$IOS_CERTIFICATE_BASE64" | base64 -D > "$CERTIFICATE_PATH"
+          echo -n "$IOS_PROVISION_PROFILE_BASE64" | base64 -D > "$PP_PATH"
+
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security import "$CERTIFICATE_PATH" -P "$IOS_CERTIFICATE_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH"
+          security list-keychains -d user -s "$KEYCHAIN_PATH"
+          security default-keychain -s "$KEYCHAIN_PATH"
+          security set-key-partition-list -S apple-tool:,apple: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+
+          mkdir -p "$HOME/Library/MobileDevice/Provisioning Profiles"
+          security cms -D -i "$PP_PATH" > "$PP_PLIST"
+          PROFILE_UUID="$(/usr/libexec/PlistBuddy -c 'Print UUID' "$PP_PLIST")"
+          PROFILE_NAME="$(/usr/libexec/PlistBuddy -c 'Print Name' "$PP_PLIST")"
+          cp "$PP_PATH" "$HOME/Library/MobileDevice/Provisioning Profiles/$PROFILE_UUID.mobileprovision"
+
+          echo "profile_uuid=$PROFILE_UUID" >> "$GITHUB_OUTPUT"
+          echo "profile_name=$PROFILE_NAME" >> "$GITHUB_OUTPUT"
+
+      - name: Archive and export signed IPA
+        if: ${{ inputs.signing == 'signed' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          ARCHIVE_PATH="$PWD/build/LXMusic.xcarchive"
+          EXPORT_PATH="$PWD/build/signed"
+          EXPORT_OPTIONS="$PWD/build/ExportOptions.plist"
+          PROFILE_NAME="${{ steps.signing.outputs.profile_name }}"
+          rm -rf "$ARCHIVE_PATH" "$EXPORT_PATH"
+          mkdir -p "$EXPORT_PATH"
+
+          xcodebuild archive \
+            -workspace ios/LxMusicMobile.xcworkspace \
+            -scheme LxMusicMobile \
+            -configuration Release \
+            -destination 'generic/platform=iOS' \
+            -archivePath "$ARCHIVE_PATH" \
+            PRODUCT_BUNDLE_IDENTIFIER="$BUNDLE_ID" \
+            DEVELOPMENT_TEAM="$IOS_TEAM_ID" \
+            CODE_SIGN_STYLE=Manual \
+            PROVISIONING_PROFILE_SPECIFIER="$PROFILE_NAME"
+
+          cat > "$EXPORT_OPTIONS" <<PLIST
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>method</key>
+            <string>$EXPORT_METHOD</string>
+            <key>teamID</key>
+            <string>$IOS_TEAM_ID</string>
+            <key>signingStyle</key>
+            <string>manual</string>
+            <key>provisioningProfiles</key>
+            <dict>
+              <key>$BUNDLE_ID</key>
+              <string>$PROFILE_NAME</string>
+            </dict>
+            <key>stripSwiftSymbols</key>
+            <true/>
+            <key>compileBitcode</key>
+            <false/>
+          </dict>
+          </plist>
+          PLIST
+
+          xcodebuild -exportArchive \
+            -archivePath "$ARCHIVE_PATH" \
+            -exportPath "$EXPORT_PATH" \
+            -exportOptionsPlist "$EXPORT_OPTIONS"
+          ls -lah "$EXPORT_PATH"/*.ipa
+
+      - name: Upload unsigned IPA artifact
+        if: ${{ inputs.signing == 'unsigned' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: LXMusic-unsigned-ipa
+          path: build/unsigned/*.ipa
+          if-no-files-found: error
+
+      - name: Upload signed IPA artifact
+        if: ${{ inputs.signing == 'signed' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: LXMusic-signed-ipa
+          path: build/signed/*.ipa
+          if-no-files-found: error
+
+      - name: Cleanup keychain
+        if: ${{ always() && inputs.signing == 'signed' }}
+        shell: bash
+        run: |
+          security delete-keychain "$RUNNER_TEMP/app-signing.keychain-db" || true
