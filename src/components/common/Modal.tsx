@@ -1,6 +1,6 @@
 // import { createStyle } from '@/utils/tools'
 import { useImperativeHandle, forwardRef, useState, useMemo } from 'react'
-import { Modal, TouchableWithoutFeedback, View, type ModalProps as _ModalProps } from 'react-native'
+import { Modal, Platform, TouchableWithoutFeedback, View, type ModalProps as _ModalProps } from 'react-native'
 import { useStatusbarHeight } from '@/store/common/hook'
 // import { useWindowSize } from '@/utils/hooks'
 
@@ -78,6 +78,14 @@ export default forwardRef<ModalType, ModalProps>(({
   }))
 
   const memoChildren = useMemo(() => children, [children])
+  const supportedOrientations = useMemo<_ModalProps['supportedOrientations']>(() => Platform.OS == 'ios'
+    ? ['portrait', 'portrait-upside-down', 'landscape', 'landscape-left', 'landscape-right']
+    : undefined, [])
+  const content = (
+    <View style={{ flex: 1, backgroundColor: bgColor, paddingTop: statusBarPadding ? statusBarHeight : 0 }}>
+      {memoChildren}
+    </View>
+  )
 
   return (
     <Modal
@@ -87,15 +95,20 @@ export default forwardRef<ModalType, ModalProps>(({
       statusBarTranslucent={true}
       visible={visible}
       onRequestClose={handleRequestClose}
+      supportedOrientations={supportedOrientations}
       {...props}
     >
       {/* <StatusBar /> */}
       {/* <View style={{ flex: 1, paddingTop: statusBarPadding ? StatusBar.currentHeight : 0 }}> */}
-      <TouchableWithoutFeedback style={{ flex: 1, paddingTop: statusBarPadding ? statusBarHeight : 0 }} onPress={handleBgClose}>
-        <View style={{ flex: 1, backgroundColor: bgColor }}>
-          {memoChildren}
-        </View>
-      </TouchableWithoutFeedback>
+      {
+        bgHide
+          ? (
+              <TouchableWithoutFeedback onPress={handleBgClose}>
+                {content}
+              </TouchableWithoutFeedback>
+            )
+          : content
+      }
       {/* </View> */}
     </Modal>
   )

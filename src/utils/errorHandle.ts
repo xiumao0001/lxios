@@ -9,19 +9,19 @@ const errorHandler = (e: Error, isFatal: boolean) => {
     'Failed to construct \'Response\'',
   ]
   if (isFatal) {
-    if (excludedErrors.some((excludedError) => e.message.includes(excludedError))) {
-      toast('应用遇到网络响应解析异常，请稍后重试。')
+    if (excludedErrors.includes(e.message)) {
+      toast('应用遇到了错误，如果你有固定的重现方式，请截图并在 GitHub 反馈（并附上刚才你进行了什么操作，以及“设置-错误日志”的内容）')
     } else {
       Alert.alert(
-        '应用遇到错误',
+        '💥Unexpected error occurred💥',
         `
-  应用遇到异常。请把下面的错误信息截图发给我，我会继续修。
+  应用出 bug 了😭，以下是错误异常信息。请截图并在 GitHub 反馈（并附上刚才你进行了什么操作，以及附上“设置-错误日志”的内容）。现在应用可能会出现异常，若出现异常请尝试强制结束应用后重新启动！
 
-  错误：
+  Error:
   ${isFatal ? 'Fatal:' : ''} ${e.name} ${e.message}
   `,
         [{
-          text: '关闭',
+          text: '关闭 (Close)',
           onPress: () => {
             // exitApp()
           },

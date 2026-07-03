@@ -14,10 +14,13 @@ import { scaleSizeH } from '@/utils/pixelRatio'
 import { HEADER_HEIGHT } from '@/config/constant'
 import { type InitState as CommonState } from '@/store/common/state'
 import SearchTypeSelector from '@/screens/Home/Views/Search/SearchTypeSelector'
-import { setNavActiveId } from '@/core/common'
 
 const headerComponents: Partial<Record<CommonState['navActiveId'], React.ReactNode>> = {
   nav_search: <SearchTypeSelector />,
+}
+
+const openMenu = () => {
+  global.app_event.changeMenuVisible(true)
 }
 
 
@@ -33,13 +36,6 @@ const LeftHeader = () => {
   const t = useI18n()
   const statusBarHeight = useStatusbarHeight()
 
-  const openMenu = () => {
-    global.app_event.changeMenuVisible(true)
-  }
-  const openSetting = () => {
-    setNavActiveId('nav_setting')
-  }
-
   return (
     <View style={{
       ...styles.container,
@@ -50,14 +46,11 @@ const LeftHeader = () => {
         <TouchableOpacity style={styles.btn} onPress={openMenu}>
           <Icon color={theme['c-font']} name="menu" size={18} />
         </TouchableOpacity>
-        <TouchableOpacity style={styles.titleBtn} onPress={openMenu}>
+        <View style={styles.titleBtn}>
           <Text style={styles.leftTitle} size={18}>{t(id)}</Text>
-        </TouchableOpacity>
+        </View>
       </View>
       {headerComponents[id] ?? null}
-      <TouchableOpacity style={styles.settingBtn} onPress={openSetting}>
-        <Text color={theme['c-font']} size={15}>设置</Text>
-      </TouchableOpacity>
 
       {/* <TouchableOpacity style={styles.btn} onPress={openSetting}>
         <Icon style={{ ...styles.btnText, color: theme['c-font'] }} name="setting" size={styles.btnText.fontSize} />
@@ -79,12 +72,6 @@ const RightHeader = () => {
   const id = useNavActiveId()
   const statusBarHeight = useStatusbarHeight()
 
-  const openMenu = () => {
-    global.app_event.changeMenuVisible(true)
-  }
-  const openSetting = () => {
-    setNavActiveId('nav_setting')
-  }
   return (
     <View style={{
       ...styles.container,
@@ -92,14 +79,11 @@ const RightHeader = () => {
       paddingTop: statusBarHeight,
     }}>
       <View style={styles.left}>
-        <TouchableOpacity style={styles.titleBtn} onPress={openMenu}>
+        <View style={styles.titleBtn}>
           <Text style={styles.rightTitle} size={18}>{t(id)}</Text>
-        </TouchableOpacity>
+        </View>
       </View>
       {headerComponents[id] ?? null}
-      <TouchableOpacity style={styles.settingBtn} onPress={openSetting}>
-        <Text color={theme['c-font']} size={15}>设置</Text>
-      </TouchableOpacity>
       <TouchableOpacity style={styles.btn} onPress={openMenu}>
         <Icon color={theme['c-font']} name="menu" size={18} />
       </TouchableOpacity>
@@ -156,13 +140,6 @@ const styles = createStyle({
     flex: 1,
     // backgroundColor: 'rgba(0,0,0,0.1)',
     height: '100%',
-    justifyContent: 'center',
-  },
-  settingBtn: {
-    height: '100%',
-    paddingLeft: 10,
-    paddingRight: 10,
-    alignItems: 'center',
     justifyContent: 'center',
   },
   leftTitle: {

@@ -31,7 +31,7 @@ export default () => {
 
   const handleTypeChange = (type: SearchType) => {
     setType(type)
-    global.app_event?.searchTypeChanged?.(type)
+    global.app_event.searchTypeChanged(type)
   }
 
   return (

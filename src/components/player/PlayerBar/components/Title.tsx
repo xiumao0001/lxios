@@ -8,7 +8,7 @@ import commonState from '@/store/common/state'
 import playerState from '@/store/player/state'
 import Text from '@/components/common/Text'
 import { LIST_IDS } from '@/config/constant'
-import { createStyle, formatMusicName } from '@/utils/tools'
+import { createStyle } from '@/utils/tools'
 
 
 export default ({ isHome }: { isHome: boolean }) => {
@@ -34,7 +34,7 @@ export default ({ isHome }: { isHome: boolean }) => {
 
   const title = musicInfo.id
     ? musicInfo.singer
-      ? formatMusicName(downloadFileName, musicInfo.name, musicInfo.singer)
+      ? downloadFileName.replace('歌手', musicInfo.singer).replace('歌名', musicInfo.name)
       : musicInfo.name
     : ''
   // console.log(playMusicInfo)

@@ -57,12 +57,12 @@ export const TEMP_FILE_PATH = temporaryDirectoryPath + '/tempFile'
 // }
 
 export const checkStoragePermissions = async() => {
-  if (Platform.OS === 'ios') return true
+  if (!isAndroid) return true
   return PermissionsAndroid.check(PermissionsAndroid.PERMISSIONS.WRITE_EXTERNAL_STORAGE)
 }
 
 export const requestStoragePermission = async() => {
-  if (Platform.OS === 'ios') return true
+  if (!isAndroid) return true
   const isGranted = await checkStoragePermissions()
   if (isGranted) return isGranted
 
@@ -109,8 +109,8 @@ export const requestStoragePermission = async() => {
  * @param position 位置
  */
 export const toast = (message: string, duration: 'long' | 'short' = 'short', position: 'top' | 'center' | 'bottom' = 'bottom') => {
-  if (Platform.OS === 'ios') {
-    Alert.alert('', message)
+  if (!isAndroid) {
+    console.log(`[toast:${duration}:${position}] ${message}`)
     return
   }
   let _duration
@@ -155,7 +155,7 @@ export const assertApiSupport = (source: LX.Source): boolean => {
 // }
 
 export const exitApp = () => {
-  if (Platform.OS === 'android') BackHandler.exitApp()
+  if (isAndroid) BackHandler.exitApp()
 }
 
 export const handleSaveFile = async(path: string, data: any) => {
@@ -338,15 +338,11 @@ export const resetIgnoringBatteryOptimizationCheck = async() => {
   return removeData(storageDataPrefix.ignoringBatteryOptimizationTipEnable)
 }
 
-export const formatMusicName = (format: string, name: string, singer: string) => {
-  return format.replace('歌手', singer).replace('歌名', name)
-}
-
 export const shareMusic = (shareType: LX.ShareType, downloadFileName: LX.AppSetting['download.fileName'], musicInfo: LX.Music.MusicInfo) => {
   const name = musicInfo.name
   const singer = musicInfo.singer
   const detailUrl = musicInfo.source == 'local' ? '' : musicSdk[musicInfo.source]?.getMusicDetailPageUrl(toOldMusicInfo(musicInfo)) ?? ''
-  const musicTitle = formatMusicName(downloadFileName, name, singer)
+  const musicTitle = downloadFileName.replace('歌名', name).replace('歌手', singer)
   switch (shareType) {
     case 'system':
       void shareText(global.i18n.t('share_card_title_music', { name }), global.i18n.t('share_title_music'), `${musicTitle.replace(/\s/g, '')}${detailUrl ? '\n' + detailUrl : ''}`)

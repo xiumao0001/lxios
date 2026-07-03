@@ -30,8 +30,6 @@ export default class Event {
         listener(...args)
       }
     }
-    // iOS/Hermes 某些构建里没有 setImmediate，直接调用会导致
-    // “undefined is not a function”，表现为点击顶部“歌曲/歌单”等按钮弹崩溃框。
     if (typeof setImmediate == 'function') setImmediate(run)
     else setTimeout(run, 0)
   }
@@ -59,3 +57,4 @@ export default class Event {
 
 //   }
 // }
+

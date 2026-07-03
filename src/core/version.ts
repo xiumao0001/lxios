@@ -1,12 +1,9 @@
-import { compareVer } from '@/utils'
-import { downloadNewVersion, getVersionInfo } from '@/utils/version'
+import { downloadNewVersion, isInternalUpdateSupported, openReleasePage } from '@/utils/version'
 import versionActions from '@/store/version/action'
 import versionState, { type InitState } from '@/store/version/state'
-import { getIgnoreVersion, getIgnoreVersionFailTipTime, saveIgnoreVersion, saveIgnoreVersionFailTipTime } from '@/utils/data'
+import { saveIgnoreVersion } from '@/utils/data'
 import { showVersionModal } from '@/navigation'
 import { Navigation } from 'react-native-navigation'
-import { toast } from '@/utils/tools'
-import { Platform } from 'react-native'
 
 export const showModal = () => {
   if (versionState.showModal) return
@@ -21,72 +18,22 @@ export const hideModal = (componentId: string) => {
 }
 
 export const checkUpdate = async() => {
-  // iOS 版不下载/安装 APK，也没有官方 iOS 发布通道；避免启动或点击时弹出英文失败提示。
-  if (Platform.OS === 'ios') {
-    versionActions.setVersionInfo({
-      status: 'idle',
-      isLatest: true,
-      isUnknown: false,
-      newVersion: {
-        version: process.versions.app,
-        desc: '',
-        history: [],
-      },
-    })
-    return
-  }
-  versionActions.setVersionInfo({ status: 'checking' })
-  let versionInfo: InitState['versionInfo'] = { ...versionState.versionInfo }
-  try {
-    const { version, desc, history } = await getVersionInfo()
-    versionInfo.newVersion = {
+  const version = versionState.versionInfo.version
+  versionActions.setVersionInfo({
+    status: 'idle',
+    isLatest: true,
+    isUnknown: false,
+    newVersion: {
       version,
-      desc,
-      history,
-    }
-  } catch (err) {
-    versionInfo.newVersion = {
-      version: '0.0.0',
       desc: '',
       history: [],
-    }
-  }
-  // const versionInfo = {
-  //   version: '1.9.0',
-  //   desc: '- 更新xxx\n- 修复xxx123的萨达修复xxx123的萨达修复xxx123的萨达修复xxx123的萨达修复xxx123的萨达',
-  //   history: [{ version: '1.8.0', desc: '- 更新xxx22\n- 修复xxx22' }, { version: '1.7.0', desc: '- 更新xxx22\n- 修复xxx22' }],
-  // }
-  if (versionInfo.newVersion.version == '0.0.0') {
-    versionInfo.isUnknown = true
-    versionInfo.status = 'error'
-  } else {
-    versionInfo.status = 'idle'
-    versionInfo.isUnknown = false
-    if (compareVer(versionInfo.version, versionInfo.newVersion.version) != -1) {
-      versionInfo.isLatest = true
-    }
-  }
-
-  versionActions.setVersionInfo(versionInfo)
-
-  if (!versionInfo.isLatest) {
-    if (versionInfo.isUnknown) {
-      const time = await getIgnoreVersionFailTipTime()
-      if (Date.now() - time < 7 * 86400000) return
-      saveIgnoreVersionFailTipTime(Date.now())
-      toast(global.i18n.t('version_tip_unknown'))
-    } else if (versionInfo.newVersion.version != await getIgnoreVersion()) {
-      showModal()
-    }
-  }
-  // console.log(compareVer(process.versions.app, versionInfo.version))
-  // console.log(process.versions.app, versionInfo.version)
+    },
+  })
 }
 
 export const downloadUpdate = () => {
-  if (Platform.OS === 'ios') {
-    versionActions.setVersionInfo({ status: 'idle' })
-    toast('iOS 版暂不支持应用内更新，请从当前安装渠道获取新版。')
+  if (!isInternalUpdateSupported) {
+    void openReleasePage(versionState.versionInfo.newVersion?.version)
     return
   }
   versionActions.setVersionInfo({ status: 'downloading' })

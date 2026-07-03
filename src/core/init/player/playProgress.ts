@@ -1,6 +1,7 @@
 import { updateListMusics } from '@/core/list'
 import { setMaxplayTime, setNowPlayTime } from '@/core/player/progress'
-import { setCurrentTime, getDuration, getPosition } from '@/plugins/player'
+import { getTimelineDuration } from '@/core/player/timeline'
+import { setCurrentTime, getDuration, getPosition } from '@/plugins/player/utils'
 import { formatPlayTime2 } from '@/utils/common'
 import { savePlayInfo } from '@/utils/data'
 import { throttleBackgroundTimer } from '@/utils/tools'
@@ -26,6 +27,13 @@ export default () => {
 
   let isScreenOn = true
 
+  const isRestoringCurrentMusic = () => {
+    const restorePlayInfo = global.lx.restorePlayInfo
+    if (!restorePlayInfo) return false
+    return restorePlayInfo.listId == playerState.playMusicInfo.listId &&
+      restorePlayInfo.index == playerState.playInfo.playIndex
+  }
+
   const getCurrentTime = () => {
     let id = playerState.musicInfo.id
     void getPosition().then(position => {
@@ -39,7 +47,9 @@ export default () => {
     })
   }
   const getMaxTime = async() => {
-    setMaxplayTime(await getDuration())
+    const duration = await getDuration()
+    const timelineDuration = getTimelineDuration(playerState.playMusicInfo.musicInfo, duration)
+    setMaxplayTime(timelineDuration)
 
     if (playerState.playMusicInfo.musicInfo && 'source' in playerState.playMusicInfo.musicInfo && !playerState.playMusicInfo.musicInfo.interval) {
       // console.log(formatPlayTime2(playProgress.maxPlayTime))
@@ -74,9 +84,13 @@ export default () => {
     if (!playerState.musicInfo.id) return
     // console.log('setProgress', time, maxTime)
     setNowPlayTime(time)
-    void setCurrentTime(time)
+    void setCurrentTime(time).then((targetPosition) => {
+      if (!playerState.musicInfo.id) return
+      if (targetPosition > 0) setNowPlayTime(targetPosition)
+      global.app_event.seekLyric(targetPosition > 0 ? targetPosition : time)
+    })
 
-    if (maxTime != null) setMaxplayTime(maxTime)
+    if (maxTime != null) setMaxplayTime(getTimelineDuration(playerState.playMusicInfo.musicInfo, maxTime))
 
     // if (!isPlay) audio.play()
   }
@@ -117,6 +131,8 @@ export default () => {
     // void setCurrentTime(playerState.progress.nowPlayTime)
     // setMaxplayTime(playProgress.maxPlayTime)
     handlePause()
+    // Skip the startup restore transition so we don't overwrite saved progress with 0.
+    if (isRestoringCurrentMusic()) return
     if (!playerState.playMusicInfo.isTempPlay) {
       void savePlayInfo({
         time: playerState.progress.nowPlayTime,

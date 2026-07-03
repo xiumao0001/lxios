@@ -118,8 +118,10 @@ const Menu = ({
 
   const menuPress = (menu: Menus[number]) => {
     // if (menu.disabled) return
-    onPress(menu)
     onHide()
+    setTimeout(() => {
+      onPress(menu)
+    }, 260)
   }
 
   // console.log('render menu')

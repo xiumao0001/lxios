@@ -1,78 +1,85 @@
 /**
  * Created by qianxin on 17/6/1.
- * 閻忕偛绻愮粻宄邦啅閵夈儱寰旂紒? * ui閻犱焦宕橀鎼佸春閸濆嫬娅?iphone 6
+ * 屏幕工具类
+ * ui设计基准,iphone 6
  * width:375
  * height:667
  */
-import { Dimensions, PixelRatio } from 'react-native'
+import { PixelRatio } from 'react-native'
 import { windowSizeTools } from './windowSizeTools'
 
+// 高保真的宽度和高度
 const designWidth = 375.0
 const designHeight = 667.0
 
-const getFontScale = () => PixelRatio.getFontScale()
-const getPixelRatio = () => PixelRatio.get()
-const getAppFontSize = () => global.lx?.fontSize || 1
-
-const getScreenSize = () => {
-  const size = windowSizeTools.getSize()
-  const fallback = Dimensions.get('window')
-  let screenW = size.width || fallback.width || designWidth
-  let screenH = size.height || fallback.height || designHeight
-  if (screenW > screenH) {
-    const temp = screenW
-    screenW = screenH
-    screenH = temp
-  }
-  return { screenW, screenH }
+// 获取屏幕的dp
+const size = windowSizeTools.getSize()
+// console.log('size', size)
+let screenW = size.width
+let screenH = size.height
+if (screenW > screenH) {
+  const temp = screenW
+  screenW = screenH
+  screenH = temp
 }
+let fontScale = PixelRatio.getFontScale()
+let pixelRatio = PixelRatio.get()
+// 根据dp获取屏幕的px
+let screenPxW = PixelRatio.getPixelSizeForLayoutSize(screenW)
+let screenPxH = PixelRatio.getPixelSizeForLayoutSize(screenH)
+// console.log(screenPxW, screenPxH)
 
-const getScaleInfo = () => {
-  const { screenW, screenH } = getScreenSize()
-  const pixelRatio = getPixelRatio()
-  const screenPxW = PixelRatio.getPixelSizeForLayoutSize(screenW)
-  const screenPxH = PixelRatio.getPixelSizeForLayoutSize(screenH)
-  const scaleW = screenPxW / designWidth
-  const scaleH = screenPxH / designHeight
-  const scale = Math.min(scaleW, scaleH, 3.1)
-  return { screenW, screenH, pixelRatio, scale }
-}
+const scaleW = screenPxW / designWidth
+const scaleH = screenPxH / designHeight
+const scale = Math.min(scaleW, scaleH, 3.1)
+// console.log(scale)
 
 /**
- * 閻犱礁澧介悿鍞梕xt
+ * 设置text
  * @param size  px
  * @returns dp
  */
 export function getTextSize(size: number) {
-  const { screenW, screenH } = getScreenSize()
-  const scaleWidth = screenW / designWidth
-  const scaleHeight = screenH / designHeight
-  const scale = Math.min(scaleWidth, scaleHeight, 1.3)
-  return Math.max(1, Math.floor(size * scale / getFontScale()))
+  // console.log('screenW======' + screenW)
+  // console.log('screenPxW======' + screenPxW)
+  let scaleWidth = screenW / designWidth
+  let scaleHeight = screenH / designHeight
+  // console.log(scaleWidth, scaleHeight)
+  let scale = Math.min(scaleWidth, scaleHeight, 1.3)
+  size = Math.floor(size * scale / fontScale)
+  // console.log(size)
+  return size
 }
 export function setSpText(size: number) {
-  return getTextSize(size) * getAppFontSize()
+  return getTextSize(size) * global.lx.fontSize
 }
 
 /**
- * 閻犱礁澧介悿鍡橆殗濡搫顔? * @param size  px
+ * 设置高度
+ * @param size  px
  * @returns dp
  */
 export function scaleSizeH(size: number) {
-  if (!size) return 0
-  const { scale, pixelRatio } = getScaleInfo()
-  return Math.max(1, Math.floor(size * scale / pixelRatio)) * getAppFontSize()
+  // console.log(screenPxH / designHeight)
+  // let scaleHeight = size * Math.min(screenPxH / designHeight, 3.1)
+  let scaleHeight = size * scale
+  size = Math.floor(scaleHeight / pixelRatio)
+  return size * global.lx.fontSize
 }
 
 /**
- * 閻犱礁澧介悿鍡欌偓纭呮鐎? * @param size  px
+ * 设置宽度
+ * @param size  px
  * @returns dp
  */
 export function scaleSizeW(size: number) {
-  if (!size) return 0
-  const { scale, pixelRatio } = getScaleInfo()
-  return Math.max(1, Math.floor(size * scale / pixelRatio)) * getAppFontSize()
+  // console.log(screenPxW / designWidth)
+  // let scaleWidth = size * Math.min(screenPxW / designWidth, 3.1)
+  let scaleWidth = size * scale
+  size = Math.floor(scaleWidth / pixelRatio)
+  return size * global.lx.fontSize
 }
+
 
 export const scaleSizeWR = (size: number) => {
   return size * 2 - scaleSizeW(size)
@@ -83,6 +90,6 @@ export const scaleSizeHR = (size: number) => {
 }
 
 export const scaleSizeAbsHR = (size: number) => {
-  const { scale, pixelRatio } = getScaleInfo()
-  return size * 2 - Math.floor(size * scale / pixelRatio)
+  let scaleHeight = size * scale
+  return size * 2 - Math.floor(scaleHeight / pixelRatio)
 }
