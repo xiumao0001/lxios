@@ -120,6 +120,25 @@ jobs:
             --bundle-output ios/main.jsbundle \
             --assets-dest ios/bundle-assets
 
+      - name: Sanitize Xcode project files
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs = require('fs')
+          const files = [
+            'ios/LxMusicMobile.xcodeproj/project.pbxproj',
+            'ios/LxMusicMobile/Info.plist'
+          ]
+          for (const f of files) {
+            let b = fs.readFileSync(f)
+            if (b.length >= 3 && b[0] === 0xef && b[1] === 0xbb && b[2] === 0xbf) {
+              b = b.subarray(3)
+              fs.writeFileSync(f, b)
+              console.log(`Removed UTF-8 BOM: ${f}`)
+            }
+          }
+          NODE
       - name: Install CocoaPods
         shell: bash
         env:
