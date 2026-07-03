@@ -5,6 +5,7 @@ const { UserApiModule } = NativeModules
 let loadScriptInfo: LX.UserApi.UserApiInfo | null = null
 export const loadScript = (info: LX.UserApi.UserApiInfo & { script: string }) => {
   loadScriptInfo = info
+  if (!UserApiModule?.loadScript) return
   UserApiModule.loadScript({
     id: info.id,
     name: info.name,
@@ -31,10 +32,8 @@ export interface SendActions {
   response: SendResponseParams
 }
 export const sendAction = <T extends keyof SendActions>(action: T, data: SendActions[T]) => {
-  UserApiModule.sendAction(action, JSON.stringify(data))
+  UserApiModule?.sendAction?.(action, JSON.stringify(data))
 }
-
-// export const clearAppCache = CacheModule.clearAppCache as () => Promise<void>
 
 export interface InitParams {
   status: boolean
@@ -77,7 +76,7 @@ export interface Actions {
 export type ActionsEvent = { [K in keyof Actions]: { action: K, data: Actions[K] } }[keyof Actions]
 
 export const onScriptAction = (handler: (event: ActionsEvent) => void): () => void => {
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+  if (!UserApiModule) return () => {}
   const eventEmitter = new NativeEventEmitter(UserApiModule)
   const eventListener = eventEmitter.addListener('api-action', event => {
     if (event.data) event.data = JSON.parse(event.data as string)
@@ -96,5 +95,5 @@ export const onScriptAction = (handler: (event: ActionsEvent) => void): () => vo
 }
 
 export const destroy = () => {
-  UserApiModule.destroy()
+  UserApiModule?.destroy?.()
 }
