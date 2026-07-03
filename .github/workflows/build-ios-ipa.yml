@@ -84,13 +84,6 @@ jobs:
           node-version: ${{ inputs.node_version || '18' }}
           cache: npm
 
-      - name: Cache Bundler gems
-        uses: actions/cache@v4
-        with:
-          path: vendor/bundle
-          key: ${{ runner.os }}-bundler-${{ hashFiles('Gemfile') }}
-          restore-keys: |
-            ${{ runner.os }}-bundler-
 
       - name: Install JS dependencies
         run: npm ci
@@ -129,12 +122,18 @@ jobs:
 
       - name: Install CocoaPods
         shell: bash
+        env:
+          COCOAPODS_DISABLE_STATS: 'true'
+          RCT_NEW_ARCH_ENABLED: '0'
+          NO_FLIPPER: '1'
         run: |
           set -euo pipefail
-          gem install bundler
-          bundle config set path vendor/bundle
-          bundle install --jobs 4 --retry 3
-          bundle exec pod install --project-directory=ios
+          ruby --version
+          gem --version
+          rm -rf ios/Pods ios/Podfile.lock vendor/bundle .bundle
+          gem install cocoapods -v 1.15.2 --no-document
+          pod --version
+          pod install --project-directory=ios --repo-update --verbose
 
       - name: Build unsigned IPA
         if: ${{ github.event_name == 'push' || inputs.signing == 'unsigned' }}

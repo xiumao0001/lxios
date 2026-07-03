@@ -69,3 +69,6 @@ buck-out/
 
 # React Native generated iOS assets
 ios/bundle-assets/
+
+# Bundler local config/cache
+.bundle/
