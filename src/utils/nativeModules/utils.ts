@@ -1,4 +1,4 @@
-import { AppState, BackHandler, Dimensions, NativeEventEmitter, NativeModules, Platform, Share } from 'react-native'
+import { AppState, BackHandler, Dimensions, NativeEventEmitter, NativeModules, PixelRatio, Platform, Share } from 'react-native'
 
 const { UtilsModule } = NativeModules
 const noop = () => {}
@@ -83,16 +83,25 @@ export const onScreenStateChange = (handler: (state: 'ON' | 'OFF') => void): () 
   }
 }
 
+const getWindowSizeInPixels = () => {
+  const { width, height } = Dimensions.get('window')
+  return {
+    width: PixelRatio.getPixelSizeForLayoutSize(width),
+    height: PixelRatio.getPixelSizeForLayoutSize(height),
+  }
+}
+
 export const getWindowSize = async(): Promise<{ width: number, height: number }> => {
   if (UtilsModule?.getWindowSize) return UtilsModule.getWindowSize()
-  const { width, height } = Dimensions.get('window')
-  return { width, height }
+  // Android UtilsModule returns physical pixels; windowSizeTools divides by scale.
+  // Keep the same contract on iOS to avoid shrinking the whole UI.
+  return getWindowSizeInPixels()
 }
 
 export const onWindowSizeChange = (handler: (size: { width: number, height: number }) => void): () => void => {
   if (!UtilsModule?.listenWindowSizeChanged) {
-    const subscription = Dimensions.addEventListener('change', ({ window }) => {
-      handler({ width: window.width, height: window.height })
+    const subscription = Dimensions.addEventListener('change', () => {
+      handler(getWindowSizeInPixels())
     })
     return () => subscription.remove()
   }
