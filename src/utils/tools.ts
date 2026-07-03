@@ -56,9 +56,13 @@ export const TEMP_FILE_PATH = temporaryDirectoryPath + '/tempFile'
 //   // return windowSize
 // }
 
-export const checkStoragePermissions = async() => PermissionsAndroid.check(PermissionsAndroid.PERMISSIONS.WRITE_EXTERNAL_STORAGE)
+export const checkStoragePermissions = async() => {
+  if (Platform.OS === 'ios') return true
+  return PermissionsAndroid.check(PermissionsAndroid.PERMISSIONS.WRITE_EXTERNAL_STORAGE)
+}
 
 export const requestStoragePermission = async() => {
+  if (Platform.OS === 'ios') return true
   const isGranted = await checkStoragePermissions()
   if (isGranted) return isGranted
 
@@ -105,6 +109,10 @@ export const requestStoragePermission = async() => {
  * @param position 位置
  */
 export const toast = (message: string, duration: 'long' | 'short' = 'short', position: 'top' | 'center' | 'bottom' = 'bottom') => {
+  if (Platform.OS === 'ios') {
+    Alert.alert('', message)
+    return
+  }
   let _duration
   switch (duration) {
     case 'long':
@@ -147,7 +155,7 @@ export const assertApiSupport = (source: LX.Source): boolean => {
 // }
 
 export const exitApp = () => {
-  BackHandler.exitApp()
+  if (Platform.OS === 'android') BackHandler.exitApp()
 }
 
 export const handleSaveFile = async(path: string, data: any) => {
